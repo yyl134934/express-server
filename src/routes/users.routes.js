@@ -1,6 +1,8 @@
 const { Router } = require("express");
 const { validationResult, query, checkSchema } = require("express-validator");
 const { createJSON } = require("./utils");
+const User = require("../models/user");
+const { hashPassword } = require("../utils/helper");
 
 const router = Router();
 
@@ -30,23 +32,28 @@ router.get(
     .withMessage("id 不能为空")
     .isLength({ min: 1, max: 32 })
     .withMessage("id 长度必须为 1-32位"),
-  (req, res) => {
+  async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       const { msg } = errors.array()[0];
       return res.status(400).json(createJSON({}, 400, msg));
     }
     const { id } = req.query;
-    const parseId = parseInt(id);
 
-    res.json(createJSON(mockData.find((item) => item.id === parseId)));
+    try {
+      const result = await User.findById(id);
+      const { password, ...user } = result?._doc;
+      res.status(200).json(createJSON(user));
+    } catch (error) {
+      res.status(500).json(createJSON(null, 500, error.message));
+    }
   }
 );
 
 router.post(
   "/api/users",
   checkSchema({
-    name: {
+    username: {
       in: ["body"],
       isString: true,
       notEmpty: true,
@@ -63,27 +70,36 @@ router.post(
       notEmpty: true,
       isEmail: true,
       normalizeEmail: true,
-      errorMessage: "邮箱格式不正确",
-      custom: {
-        options: (value) => {
-          const isExists = mockData.find((item) => item.email === value);
-          if (isExists) {
-            throw new Error("邮箱已存在");
-          }
-          return true;
+    },
+    password: {
+      in: ["body"],
+      isString: true,
+      notEmpty: true,
+      isLength: {
+        options: {
+          min: 6,
+          max: 32,
         },
       },
     },
   }),
-  (req, res) => {
+  async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       const { msg } = errors.array()[0];
       return res.status(400).json(createJSON({}, 400, msg));
     }
 
-    const { name, email } = req.body;
-    res.json(createJSON({ name, email }));
+    try {
+      const hashPwd = await hashPassword(req.body?.password);
+      const newUser = new User({ ...req.body, password: hashPwd });
+      await newUser.save();
+
+      const { password, ...user } = newUser._doc;
+      res.status(201).json(createJSON(user));
+    } catch (error) {
+      res.status(400).json(createJSON({}, 400, error.message));
+    }
   }
 );
 
