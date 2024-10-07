@@ -2,6 +2,7 @@ const express = require("express");
 const session = require("express-session");
 const mongoose = require("mongoose");
 const passport = require("passport");
+const MongoStore = require("connect-mongo");
 const { PORT } = require("./config");
 const router = require("./routes");
 const { loggingMiddleware } = require("./middleware");
@@ -21,13 +22,10 @@ app.use(
     secret: "your secret key", // 用于加密会话数据,需要和cookie-parser一致
     resave: false, // 是否在每次请求时重新保存会话(关闭优化性能)
     saveUninitialized: false, // 是否保存未初始化的会话(关闭优化性能)
-    cookie: {
-      secure: process.env.NODE_ENV === "production", // 使用 HTTPS 在生产环境
-      httpOnly: true, // 防止客户端脚本访问 cookie
-      maxAge: 24 * 60 * 60 * 1000, // 设置 cookie 过期时间为 24 小时
-    },
-    name: "sessionId", // 自定义 cookie 名称
-    rolling: true, // 每次响应时刷新 cookie 过期时间
+    store: MongoStore.create({
+      client: mongoose.connection.getClient(),
+      ttl: 14 * 24 * 60 * 60, // = 14 天。默认
+    }),
   })
 );
 

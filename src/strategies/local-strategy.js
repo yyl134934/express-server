@@ -4,13 +4,14 @@ const User = require("../models/user");
 const { verifyPassword } = require("../utils/helper");
 
 passport.serializeUser(function (user, done) {
+  console.log("🚀🐍 ~ user:", user);
   done(null, user.id);
 });
 
 passport.deserializeUser(async function (id, done) {
+  console.log("🚀🐍 ~ id:", id);
   try {
     const findUser = await User.findById(id);
-    if (!findUser) throw new Error("User Not Found");
     done(null, findUser);
   } catch (err) {
     done(err, null);
