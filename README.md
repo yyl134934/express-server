@@ -1,0 +1,9 @@
+## API
+### auth
+- login
+- register
+### user
+- getUser
+- updateUser
+- deleteUser
+- resetPassword
